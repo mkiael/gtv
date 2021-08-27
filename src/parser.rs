@@ -42,7 +42,7 @@ impl Parser {
         match self.state {
             ParserState::Inactive => {
                 if match_mark(line, TEST_ITERATION) {
-                    match parse_test_count(line) {
+                    match parse_test_count(strip_mark(line)) {
                         Ok((num_cases, num_suites)) => {
                             self.state = ParserState::IterationStart;
                             self.listener
@@ -63,7 +63,7 @@ impl Parser {
             ParserState::IterationEnd => Ok(()),
             ParserState::SetupStart => {
                 if match_mark(line, TEST_SUITE) {
-                    match parse_test_suite(line) {
+                    match parse_test_suite(strip_mark(line)) {
                         Ok((num_tests, suite_name)) => {
                             self.state = ParserState::SuiteStart;
                             self.listener
@@ -106,6 +106,10 @@ pub fn parse(input: &mut Box<dyn BufRead>, listener: Sender<ParserEvent>) -> Res
 
 fn match_mark(line: &str, mark: &str) -> bool {
     line.len() > MARK_SIZE && &line[..MARK_SIZE] == mark
+}
+
+fn strip_mark(line: &str) -> &str {
+    &line[(MARK_SIZE+1)..]
 }
 
 fn parse_test_count(line: &str) -> Result<(i64, i64)> {
