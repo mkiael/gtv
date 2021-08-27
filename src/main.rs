@@ -50,6 +50,10 @@ fn main() {
                 writeln!(tty, "Running test {}{}{}.", style::Bold, name, style::Reset,).unwrap();
                 tty.flush().unwrap();
             }
+            ParserEvent::PassedTests(num_passed) => {
+                writeln!(tty, "{}{}{} tests passed.", style::Bold, num_passed, style::Reset,).unwrap();
+                tty.flush().unwrap();
+            }
             ParserEvent::Done => break,
         }
     }

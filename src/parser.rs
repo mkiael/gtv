@@ -7,6 +7,7 @@ pub enum ParserEvent {
     NewIteration(i64, i64),
     NewSuite(i64, String),
     NewTestCase(String),
+    PassedTests(i64),
     Done,
 }
 
@@ -65,7 +66,14 @@ impl Parser {
                 }
                 Ok(())
             }
-            ParserState::IterationEnd => Ok(()),
+            ParserState::IterationEnd => {
+                if match_mark(line, TEST_PASSED) {
+                    if let Some(num_passed) = parse_num_tests(strip_mark(line)) {
+                        self.listener.send(ParserEvent::PassedTests(num_passed)).unwrap();
+                    }
+                }
+                Ok(())
+            },
             ParserState::SetupStart | ParserState::SuiteEnd => {
                 if match_mark(line, TEST_SUITE) {
                     if let Some(((num_tests, suite_name))) = parse_test_suite(strip_mark(line)) {
@@ -80,7 +88,12 @@ impl Parser {
                 }
                 Ok(())
             }
-            ParserState::SetupEnd => Ok(()),
+            ParserState::SetupEnd => {
+                if match_mark(line, TEST_ITERATION) {
+                    self.state = ParserState::IterationEnd;
+                }
+                Ok(())
+            },
             ParserState::SuiteStart | ParserState::TestCaseEnd => {
                 if match_mark(line, TEST_RUN) {
                     self.state = ParserState::TestCaseStart;
@@ -92,7 +105,6 @@ impl Parser {
                 }
                 Ok(())
             }
-            ParserState::SuiteEnd => Ok(()),
             ParserState::TestCaseStart => {
                 if match_mark(line, TEST_OK) {
                     self.state = ParserState::TestCaseEnd;
@@ -156,6 +168,16 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
             caps["num_cases"].parse::<i64>().unwrap(),
             caps["suite_name"].to_string(),
         ))
+    } else {
+        None
+    }
+}
+
+fn parse_num_tests(line: &str) -> Option<i64> {
+    let re = Regex::new(r"(?P<num_tests>[0-9]+) tests.")
+        .unwrap();
+    if let Some(caps) = re.captures(line) {
+        Some(caps["num_tests"].parse::<i64>().unwrap())
     } else {
         None
     }
