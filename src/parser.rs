@@ -69,11 +69,13 @@ impl Parser {
             ParserState::IterationEnd => {
                 if match_mark(line, TEST_PASSED) {
                     if let Some(num_passed) = parse_num_tests(strip_mark(line)) {
-                        self.listener.send(ParserEvent::PassedTests(num_passed)).unwrap();
+                        self.listener
+                            .send(ParserEvent::PassedTests(num_passed))
+                            .unwrap();
                     }
                 }
                 Ok(())
-            },
+            }
             ParserState::SetupStart | ParserState::SuiteEnd => {
                 if match_mark(line, TEST_SUITE) {
                     if let Some(((num_tests, suite_name))) = parse_test_suite(strip_mark(line)) {
@@ -93,12 +95,14 @@ impl Parser {
                     self.state = ParserState::IterationEnd;
                 }
                 Ok(())
-            },
+            }
             ParserState::SuiteStart | ParserState::TestCaseEnd => {
                 if match_mark(line, TEST_RUN) {
                     self.state = ParserState::TestCaseStart;
                     self.listener
-                        .send(ParserEvent::NewTestCase(strip_mark(line).trim().to_string()))
+                        .send(ParserEvent::NewTestCase(
+                            strip_mark(line).trim().to_string(),
+                        ))
                         .unwrap();
                 } else if match_mark(line, TEST_SUITE) {
                     self.state = ParserState::SuiteEnd;
@@ -110,7 +114,7 @@ impl Parser {
                     self.state = ParserState::TestCaseEnd;
                 }
                 Ok(())
-            },
+            }
         }
     }
 
@@ -174,8 +178,7 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
 }
 
 fn parse_num_tests(line: &str) -> Option<i64> {
-    let re = Regex::new(r"(?P<num_tests>[0-9]+) tests.")
-        .unwrap();
+    let re = Regex::new(r"(?P<num_tests>[0-9]+) tests.").unwrap();
     if let Some(caps) = re.captures(line) {
         Some(caps["num_tests"].parse::<i64>().unwrap())
     } else {
