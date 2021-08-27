@@ -46,6 +46,10 @@ fn main() {
                 .unwrap();
                 tty.flush().unwrap();
             }
+            ParserEvent::NewTestCase(name) => {
+                writeln!(tty, "Running test {}{}{}.", style::Bold, name, style::Reset,).unwrap();
+                tty.flush().unwrap();
+            }
             ParserEvent::Done => break,
         }
     }

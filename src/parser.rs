@@ -6,6 +6,7 @@ use std::sync::mpsc::Sender;
 pub enum ParserEvent {
     NewIteration(i64, i64),
     NewSuite(i64, String),
+    NewTestCase(String),
     Done,
 }
 
@@ -17,11 +18,15 @@ enum ParserState {
     SetupEnd,
     SuiteStart,
     SuiteEnd,
+    TestCaseStart,
+    TestCaseEnd,
 }
 
 const TEST_ITERATION: &str = "[==========]";
 const TEST_SETUP: &str = "[----------]";
 const TEST_SUITE: &str = "[----------]";
+const TEST_RUN: &str = "[ RUN      ]";
+const TEST_OK: &str = "[       OK ]";
 const TEST_PASSED: &str = "[  PASSED  ]";
 const MARK_SIZE: usize = TEST_ITERATION.len();
 
@@ -61,23 +66,39 @@ impl Parser {
                 Ok(())
             }
             ParserState::IterationEnd => Ok(()),
-            ParserState::SetupStart => {
+            ParserState::SetupStart | ParserState::SuiteEnd => {
                 if match_mark(line, TEST_SUITE) {
-                    match parse_test_suite(strip_mark(line)) {
-                        Ok((num_tests, suite_name)) => {
-                            self.state = ParserState::SuiteStart;
-                            self.listener
-                                .send(ParserEvent::NewSuite(num_tests, suite_name))
-                                .unwrap();
-                        }
-                        Err(e) => return Err(e),
+                    if let Some(((num_tests, suite_name))) = parse_test_suite(strip_mark(line)) {
+                        self.state = ParserState::SuiteStart;
+                        self.listener
+                            .send(ParserEvent::NewSuite(num_tests, suite_name))
+                            .unwrap();
+                    } else {
+                        // TODO: Check for environment tear-down
+                        self.state = ParserState::SetupEnd;
                     }
                 }
                 Ok(())
             }
             ParserState::SetupEnd => Ok(()),
-            ParserState::SuiteStart => Ok(()),
+            ParserState::SuiteStart | ParserState::TestCaseEnd => {
+                if match_mark(line, TEST_RUN) {
+                    self.state = ParserState::TestCaseStart;
+                    self.listener
+                        .send(ParserEvent::NewTestCase(strip_mark(line).trim().to_string()))
+                        .unwrap();
+                } else if match_mark(line, TEST_SUITE) {
+                    self.state = ParserState::SuiteEnd;
+                }
+                Ok(())
+            }
             ParserState::SuiteEnd => Ok(()),
+            ParserState::TestCaseStart => {
+                if match_mark(line, TEST_OK) {
+                    self.state = ParserState::TestCaseEnd;
+                }
+                Ok(())
+            },
         }
     }
 
@@ -109,7 +130,7 @@ fn match_mark(line: &str, mark: &str) -> bool {
 }
 
 fn strip_mark(line: &str) -> &str {
-    &line[(MARK_SIZE+1)..]
+    &line[MARK_SIZE..].trim()
 }
 
 fn parse_test_count(line: &str) -> Result<(i64, i64)> {
@@ -127,15 +148,15 @@ fn parse_test_count(line: &str) -> Result<(i64, i64)> {
     }
 }
 
-fn parse_test_suite(line: &str) -> Result<(i64, String)> {
+fn parse_test_suite(line: &str) -> Option<(i64, String)> {
     let re = Regex::new(r"(?P<num_cases>[0-9]+) tests from (?P<suite_name>[a-zA-Z_$][a-zA-Z\d_]+)")
         .unwrap();
     if let Some(caps) = re.captures(line) {
-        Ok((
+        Some((
             caps["num_cases"].parse::<i64>().unwrap(),
             caps["suite_name"].to_string(),
         ))
     } else {
-        Err(Error::new(ErrorKind::Other, "Parsing test suite failed."))
+        None
     }
 }
