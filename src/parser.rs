@@ -165,8 +165,10 @@ fn parse_test_count(line: &str) -> Result<(i64, i64)> {
 }
 
 fn parse_test_suite(line: &str) -> Option<(i64, String)> {
-    let re = Regex::new(r"(?P<num_cases>[0-9]+) tests from (?P<suite_name>[a-zA-Z_$][a-zA-Z\d_]+)")
-        .unwrap();
+    let re = Regex::new(
+        r"(?P<num_cases>[0-9]+) (test|tests) from (?P<suite_name>[a-zA-Z_$][a-zA-Z\d_]+)",
+    )
+    .unwrap();
     if let Some(caps) = re.captures(line) {
         Some((
             caps["num_cases"].parse::<i64>().unwrap(),
@@ -178,7 +180,7 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
 }
 
 fn parse_num_tests(line: &str) -> Option<i64> {
-    let re = Regex::new(r"(?P<num_tests>[0-9]+) tests.").unwrap();
+    let re = Regex::new(r"(?P<num_tests>[0-9]+) (test|tests).").unwrap();
     if let Some(caps) = re.captures(line) {
         Some(caps["num_tests"].parse::<i64>().unwrap())
     } else {
