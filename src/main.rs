@@ -1,4 +1,5 @@
 use gtv::parser::{parse, ParserEvent};
+use std::env;
 use std::io::{stdin, BufRead, BufReader, Write};
 use std::sync::mpsc;
 use std::thread;
@@ -69,6 +70,8 @@ impl TestIteration {
 }
 
 fn main() {
+    let enable_ui = env::var("GTV_NO_UI").unwrap_or_default().is_empty();
+
     let (listener_tx, listener_rx) = mpsc::channel();
     let parser_thd = thread::spawn(move || {
         let mut input_reader: Box<dyn BufRead> = Box::new(BufReader::new(stdin()));
@@ -91,41 +94,43 @@ fn main() {
             ParserEvent::Done => break,
         }
 
-        let mut tty = termion::get_tty().unwrap();
-        writeln!(
-            tty,
-            "{}{}{}Google Test Viewer{}",
-            clear::All,
-            style::Bold,
-            color::Fg(color::Green),
-            style::Reset
-        )
-        .unwrap();
-        writeln!(
-            tty,
-            "Running {}{}{} from {}{}{} suites.",
-            style::Bold,
-            iteration.num_cases,
-            style::Reset,
-            style::Bold,
-            iteration.num_suites,
-            style::Reset,
-        )
-        .unwrap();
-        for suite in iteration.suites.iter() {
+        if enable_ui {
+            let mut tty = termion::get_tty().unwrap();
             writeln!(
                 tty,
-                "Running {}{}{}.",
+                "{}{}{}Google Test Viewer{}",
+                clear::All,
                 style::Bold,
-                suite.name,
+                color::Fg(color::Green),
+                style::Reset
+            )
+            .unwrap();
+            writeln!(
+                tty,
+                "Running {}{}{} from {}{}{} suites.",
+                style::Bold,
+                iteration.num_cases,
+                style::Reset,
+                style::Bold,
+                iteration.num_suites,
                 style::Reset,
             )
             .unwrap();
-            for case in suite.cases.iter() {
-                writeln!(tty, "\t{}{}{}.", style::Bold, case.name, style::Reset,).unwrap();
+            for suite in iteration.suites.iter() {
+                writeln!(
+                    tty,
+                    "Running {}{}{}.",
+                    style::Bold,
+                    suite.name,
+                    style::Reset,
+                )
+                .unwrap();
+                for case in suite.cases.iter() {
+                    writeln!(tty, "\t{}{}{}.", style::Bold, case.name, style::Reset,).unwrap();
+                }
             }
+            tty.flush().unwrap();
         }
-        tty.flush().unwrap();
     }
     parser_thd.join().unwrap();
     eprintln!("Program done");
