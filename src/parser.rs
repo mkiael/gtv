@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::io::{BufRead, Error, ErrorKind, Result};
 use std::sync::mpsc::Sender;
@@ -150,11 +151,13 @@ fn strip_mark(line: &str) -> &str {
 }
 
 fn parse_test_count(line: &str) -> Result<(i64, i64)> {
-    let re = Regex::new(
-        r"Running (?P<num_cases>[0-9]+) tests from (?P<num_suites>[0-9]+) test suites\.",
-    )
-    .unwrap();
-    if let Some(caps) = re.captures(line) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(
+            r"Running (?P<num_cases>[0-9]+) tests from (?P<num_suites>[0-9]+) test suites\.",
+        )
+        .unwrap();
+    }
+    if let Some(caps) = RE.captures(line) {
         Ok((
             caps["num_cases"].parse::<i64>().unwrap(),
             caps["num_suites"].parse::<i64>().unwrap(),
@@ -165,11 +168,13 @@ fn parse_test_count(line: &str) -> Result<(i64, i64)> {
 }
 
 fn parse_test_suite(line: &str) -> Option<(i64, String)> {
-    let re = Regex::new(
-        r"(?P<num_cases>[0-9]+) (test|tests) from (?P<suite_name>[a-zA-Z_$][a-zA-Z\d_]+)",
-    )
-    .unwrap();
-    if let Some(caps) = re.captures(line) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(
+            r"(?P<num_cases>[0-9]+) (test|tests) from (?P<suite_name>[a-zA-Z_$][a-zA-Z\d_]+)",
+        )
+        .unwrap();
+    }
+    if let Some(caps) = RE.captures(line) {
         Some((
             caps["num_cases"].parse::<i64>().unwrap(),
             caps["suite_name"].to_string(),
@@ -180,8 +185,10 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
 }
 
 fn parse_num_tests(line: &str) -> Option<i64> {
-    let re = Regex::new(r"(?P<num_tests>[0-9]+) (test|tests).").unwrap();
-    if let Some(caps) = re.captures(line) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"(?P<num_tests>[0-9]+) (test|tests).").unwrap();
+    }
+    if let Some(caps) = RE.captures(line) {
         Some(caps["num_tests"].parse::<i64>().unwrap())
     } else {
         None
