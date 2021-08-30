@@ -36,37 +36,21 @@ impl TestSuite {
             cases: Vec::new(),
         }
     }
-
-    pub fn add_case(&mut self, case: TestCase) {
-        self.cases.push(case)
-    }
-
-    pub fn last_case(&mut self) -> &mut TestCase {
-        self.cases.last_mut().unwrap()
-    }
 }
 
-pub struct TestIteration {
-    pub num_suites: i64,
-    pub num_cases: i64,
-    pub suites: Vec<TestSuite>,
+struct TestIteration {
+    num_suites: i64,
+    num_cases: i64,
+    suites: Vec<TestSuite>,
 }
 
 impl TestIteration {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             num_suites: 0,
             num_cases: 0,
             suites: Vec::new(),
         }
-    }
-
-    pub fn add_suite(&mut self, suite: TestSuite) {
-        self.suites.push(suite)
-    }
-
-    pub fn last_suite(&mut self) -> &mut TestSuite {
-        self.suites.last_mut().unwrap()
     }
 }
 
@@ -77,14 +61,44 @@ pub struct Config {
 
 pub struct Ui {
     config: Config,
+    iteration: TestIteration,
 }
 
 impl Ui {
     pub fn new(config: Config) -> Self {
-        Self { config }
+        Self {
+            config,
+            iteration: TestIteration::new(),
+        }
     }
 
-    pub fn render(&self, iteration: &TestIteration) {
+    pub fn init_iteration(&mut self, num_cases: i64, num_suites: i64) {
+        self.iteration.num_cases = num_cases;
+        self.iteration.num_suites = num_suites;
+    }
+
+    pub fn add_suite(&mut self, suite: TestSuite) {
+        self.iteration.suites.push(suite)
+    }
+
+    pub fn add_case(&mut self, case: TestCase) {
+        self.iteration.suites.last_mut().unwrap().cases.push(case);
+    }
+
+    pub fn update_last_case(&mut self, state: TestState, duration: i64) {
+        let mut last_case = self
+            .iteration
+            .suites
+            .last_mut()
+            .unwrap()
+            .cases
+            .last_mut()
+            .unwrap();
+        last_case.state = state;
+        last_case.duration = duration;
+    }
+
+    pub fn render(&self) {
         if self.config.enable_ui {
             let mut tty = termion::get_tty().unwrap();
             writeln!(
@@ -100,14 +114,14 @@ impl Ui {
                 tty,
                 "Running {}{}{} from {}{}{} suites.",
                 style::Bold,
-                iteration.num_cases,
+                self.iteration.num_cases,
                 style::Reset,
                 style::Bold,
-                iteration.num_suites,
+                self.iteration.num_suites,
                 style::Reset,
             )
             .unwrap();
-            for suite in iteration.suites.iter() {
+            for suite in self.iteration.suites.iter() {
                 let to_render = suite
                     .cases
                     .iter()
