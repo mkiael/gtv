@@ -1,5 +1,5 @@
 use gtv::parser::{parse, ParserEvent};
-use gtv::ui::{render, TestCase, TestIteration, TestSuite};
+use gtv::ui::{render, TestCase, TestIteration, TestState, TestSuite};
 use std::env;
 use std::io::{stdin, BufRead, BufReader};
 use std::sync::mpsc;
@@ -22,18 +22,29 @@ fn main() {
                 iteration.num_cases = num_cases;
                 iteration.num_suites = num_suites;
             }
-            ParserEvent::NewSuite(num_cases, suite_name) => {
-                iteration.add_suite(TestSuite::new(suite_name))
+            ParserEvent::NewSuite(_num_cases, suite_name) => {
+                iteration.add_suite(TestSuite::new(suite_name));
             }
             ParserEvent::NewTestCase(name) => iteration.last_suite().add_case(TestCase::new(name)),
-            ParserEvent::PassedTests(num_passed) => {}
+            ParserEvent::TestCasePassed(time) => {
+                let mut test_case = iteration.last_suite().last_case();
+                test_case.state = TestState::Passed;
+                test_case.duration = time;
+            }
+            ParserEvent::TestCaseFailed(_reason, time) => {
+                let mut test_case = iteration.last_suite().last_case();
+                test_case.state = TestState::Failed;
+                test_case.duration = time;
+            }
+            ParserEvent::PassedTests(_num_passed) => {}
             ParserEvent::Done => break,
         }
-
-        if enable_ui {
-            render(&iteration);
-        }
     }
+
+    if enable_ui {
+        render(&iteration);
+    }
+
     parser_thd.join().unwrap();
     eprintln!("Program done");
 }

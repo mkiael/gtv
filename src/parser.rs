@@ -8,6 +8,8 @@ pub enum ParserEvent {
     NewIteration(i64, i64),
     NewSuite(i64, String),
     NewTestCase(String),
+    TestCasePassed(i64),
+    TestCaseFailed(String, i64),
     PassedTests(i64),
     Done,
 }
@@ -29,6 +31,7 @@ const TEST_SETUP: &str = "[----------]";
 const TEST_SUITE: &str = "[----------]";
 const TEST_RUN: &str = "[ RUN      ]";
 const TEST_OK: &str = "[       OK ]";
+const TEST_FAILED: &str = "[  FAILED  ]";
 const TEST_PASSED: &str = "[  PASSED  ]";
 const MARK_SIZE: usize = TEST_ITERATION.len();
 
@@ -112,7 +115,19 @@ impl Parser {
             }
             ParserState::TestCaseStart => {
                 if match_mark(line, TEST_OK) {
-                    self.state = ParserState::TestCaseEnd;
+                    if let Some(time) = parse_time(strip_mark(line)) {
+                        self.state = ParserState::TestCaseEnd;
+                        self.listener
+                            .send(ParserEvent::TestCasePassed(time))
+                            .unwrap();
+                    }
+                } else if match_mark(line, TEST_FAILED) {
+                    if let Some(time) = parse_time(strip_mark(line)) {
+                        self.state = ParserState::TestCaseEnd;
+                        self.listener
+                            .send(ParserEvent::TestCaseFailed(String::new(), time))
+                            .unwrap();
+                    }
                 }
                 Ok(())
             }
@@ -190,6 +205,17 @@ fn parse_num_tests(line: &str) -> Option<i64> {
     }
     if let Some(caps) = RE.captures(line) {
         Some(caps["num_tests"].parse::<i64>().unwrap())
+    } else {
+        None
+    }
+}
+
+fn parse_time(line: &str) -> Option<i64> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"\((?P<time>[0-9]+) ms\)").unwrap();
+    }
+    if let Some(caps) = RE.captures(line) {
+        Some(caps["time"].parse::<i64>().unwrap())
     } else {
         None
     }
