@@ -82,7 +82,7 @@ impl Parser {
             }
             ParserState::SetupStart | ParserState::SuiteEnd => {
                 if match_mark(line, TEST_SUITE) {
-                    if let Some(((num_tests, suite_name))) = parse_test_suite(strip_mark(line)) {
+                    if let Some((num_tests, suite_name)) = parse_test_suite(strip_mark(line)) {
                         self.state = ParserState::SuiteStart;
                         self.listener
                             .send(ParserEvent::NewSuite(num_tests, suite_name))
@@ -146,10 +146,11 @@ pub fn parse(input: &mut Box<dyn BufRead>, listener: Sender<ParserEvent>) -> Res
         match input.read_line(&mut line) {
             Err(_) => break,
             Ok(0) => break,
-            Ok(_) => match parser.process_line(&line) {
-                Err(_) => break,
-                _ => (),
-            },
+            Ok(_) => {
+                if parser.process_line(&line).is_err() {
+                    break;
+                }
+            }
         }
     }
     // TODO: Return proper value
@@ -189,34 +190,22 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
         )
         .unwrap();
     }
-    if let Some(caps) = RE.captures(line) {
-        Some((
-            caps["num_cases"].parse::<i64>().unwrap(),
-            caps["suite_name"].to_string(),
-        ))
-    } else {
-        None
-    }
+    RE.captures(line).map(|caps| (
+        caps["num_cases"].parse::<i64>().unwrap(),
+        caps["suite_name"].to_string(),
+    ))
 }
 
 fn parse_num_tests(line: &str) -> Option<i64> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?P<num_tests>[0-9]+) (test|tests).").unwrap();
     }
-    if let Some(caps) = RE.captures(line) {
-        Some(caps["num_tests"].parse::<i64>().unwrap())
-    } else {
-        None
-    }
+    RE.captures(line).map(|caps| caps["num_tests"].parse::<i64>().unwrap())
 }
 
 fn parse_time(line: &str) -> Option<i64> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"\((?P<time>[0-9]+) ms\)").unwrap();
     }
-    if let Some(caps) = RE.captures(line) {
-        Some(caps["time"].parse::<i64>().unwrap())
-    } else {
-        None
-    }
+    RE.captures(line).map(|caps| caps["time"].parse::<i64>().unwrap())
 }
