@@ -7,9 +7,8 @@ use std::sync::mpsc::Sender;
 pub enum ParserEvent {
     NewIteration(i64, i64),
     NewSuite(i64, String),
-    NewTestCase(String),
-    TestCasePassed(i64),
-    TestCaseFailed(String, i64),
+    TestCasePassed(String, i64),
+    TestCaseFailed(String, i64, String),
     PassedTests(i64),
     Done,
 }
@@ -103,11 +102,6 @@ impl Parser {
             ParserState::SuiteStart | ParserState::TestCaseEnd => {
                 if match_mark(line, TEST_RUN) {
                     self.state = ParserState::TestCaseStart;
-                    self.listener
-                        .send(ParserEvent::NewTestCase(
-                            strip_mark(line).trim().to_string(),
-                        ))
-                        .unwrap();
                 } else if match_mark(line, TEST_SUITE) {
                     self.state = ParserState::SuiteEnd;
                 }
@@ -115,17 +109,21 @@ impl Parser {
             }
             ParserState::TestCaseStart => {
                 if match_mark(line, TEST_OK) {
-                    if let Some(time) = parse_time(strip_mark(line)) {
+                    if let Some((test_name, duration)) = parse_finished_test(strip_mark(line)) {
                         self.state = ParserState::TestCaseEnd;
                         self.listener
-                            .send(ParserEvent::TestCasePassed(time))
+                            .send(ParserEvent::TestCasePassed(test_name, duration))
                             .unwrap();
                     }
                 } else if match_mark(line, TEST_FAILED) {
-                    if let Some(time) = parse_time(strip_mark(line)) {
+                    if let Some((test_name, duration)) = parse_finished_test(strip_mark(line)) {
                         self.state = ParserState::TestCaseEnd;
                         self.listener
-                            .send(ParserEvent::TestCaseFailed(String::new(), time))
+                            .send(ParserEvent::TestCaseFailed(
+                                test_name,
+                                duration,
+                                String::new(),
+                            ))
                             .unwrap();
                     }
                 }
@@ -190,22 +188,32 @@ fn parse_test_suite(line: &str) -> Option<(i64, String)> {
         )
         .unwrap();
     }
-    RE.captures(line).map(|caps| (
-        caps["num_cases"].parse::<i64>().unwrap(),
-        caps["suite_name"].to_string(),
-    ))
+    RE.captures(line).map(|caps| {
+        (
+            caps["num_cases"].parse::<i64>().unwrap(),
+            caps["suite_name"].to_string(),
+        )
+    })
 }
 
 fn parse_num_tests(line: &str) -> Option<i64> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?P<num_tests>[0-9]+) (test|tests).").unwrap();
     }
-    RE.captures(line).map(|caps| caps["num_tests"].parse::<i64>().unwrap())
+    RE.captures(line)
+        .map(|caps| caps["num_tests"].parse::<i64>().unwrap())
 }
 
-fn parse_time(line: &str) -> Option<i64> {
+fn parse_finished_test(line: &str) -> Option<(String, i64)> {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"\((?P<time>[0-9]+) ms\)").unwrap();
+        static ref RE: Regex =
+            Regex::new(r"(.*)\.(?P<test_name>[a-zA-Z_$][a-zA-Z\d_]+) \((?P<duration>[0-9]+) ms\)")
+                .unwrap();
     }
-    RE.captures(line).map(|caps| caps["time"].parse::<i64>().unwrap())
+    RE.captures(line).map(|caps| {
+        (
+            caps["test_name"].to_string(),
+            caps["duration"].parse::<i64>().unwrap(),
+        )
+    })
 }

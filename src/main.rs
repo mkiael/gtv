@@ -13,7 +13,7 @@ fn main() {
     });
     let mut ui = Ui::new(Config {
         enable_ui: env::var("GTV_NO_UI").unwrap_or_default().is_empty(),
-        only_failed: true,
+        only_failed: false,
     });
 
     loop {
@@ -24,12 +24,15 @@ fn main() {
             ParserEvent::NewSuite(_num_cases, suite_name) => {
                 ui.add_suite(TestSuite::new(suite_name));
             }
-            ParserEvent::NewTestCase(name) => ui.add_case(TestCase::new(name)),
-            ParserEvent::TestCasePassed(time) => {
-                ui.update_last_case(TestState::Passed, time);
+            ParserEvent::TestCasePassed(test_name, duration) => {
+                ui.add_case(TestCase::new(test_name, duration, TestState::Passed));
             }
-            ParserEvent::TestCaseFailed(_reason, time) => {
-                ui.update_last_case(TestState::Failed, time);
+            ParserEvent::TestCaseFailed(test_name, duration, reason) => {
+                ui.add_case(TestCase::new(
+                    test_name,
+                    duration,
+                    TestState::Failed(reason),
+                ));
             }
             ParserEvent::PassedTests(_num_passed) => {}
             ParserEvent::Done => break,

@@ -3,23 +3,22 @@ use termion::{clear, color, style};
 
 #[derive(PartialEq)]
 pub enum TestState {
-    Running,
     Passed,
-    Failed,
+    Failed(String),
 }
 
 pub struct TestCase {
     pub name: String,
-    pub state: TestState,
     pub duration: i64,
+    pub state: TestState,
 }
 
 impl TestCase {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, duration: i64, state: TestState) -> Self {
         Self {
             name,
-            state: TestState::Running,
-            duration: 0,
+            duration,
+            state,
         }
     }
 }
@@ -85,19 +84,6 @@ impl Ui {
         self.iteration.suites.last_mut().unwrap().cases.push(case);
     }
 
-    pub fn update_last_case(&mut self, state: TestState, duration: i64) {
-        let mut last_case = self
-            .iteration
-            .suites
-            .last_mut()
-            .unwrap()
-            .cases
-            .last_mut()
-            .unwrap();
-        last_case.state = state;
-        last_case.duration = duration;
-    }
-
     pub fn render(&self) {
         if self.config.enable_ui {
             let mut tty = termion::get_tty().unwrap();
@@ -127,7 +113,7 @@ impl Ui {
                     .iter()
                     .filter(|test_case| {
                         if self.config.only_failed {
-                            test_case.state == TestState::Failed
+                            matches!(test_case.state, TestState::Failed(_))
                         } else {
                             true
                         }
