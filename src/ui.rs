@@ -54,7 +54,6 @@ impl TestIteration {
 }
 
 pub struct Config {
-    pub enable_ui: bool,
     pub only_failed: bool,
 }
 
@@ -85,78 +84,76 @@ impl Ui {
     }
 
     pub fn render(&self) {
-        if self.config.enable_ui {
-            let mut tty = termion::get_tty().unwrap();
-            writeln!(
-                tty,
-                "{}{}\nGoogle Test Viewer{}",
-                style::Bold,
-                color::Fg(color::Green),
-                style::Reset
-            )
-            .unwrap();
-            writeln!(
-                tty,
-                "Running {}{}{} from {}{}{} suites.",
-                style::Bold,
-                self.iteration.num_cases,
-                style::Reset,
-                style::Bold,
-                self.iteration.num_suites,
-                style::Reset,
-            )
-            .unwrap();
-            for suite in self.iteration.suites.iter() {
-                let to_render = suite
-                    .cases
-                    .iter()
-                    .filter(|test_case| {
-                        if self.config.only_failed {
-                            matches!(test_case.state, TestState::Failed(_))
-                        } else {
-                            true
-                        }
-                    })
-                    .collect::<Vec<&TestCase>>();
+        let mut tty = termion::get_tty().unwrap();
+        writeln!(
+            tty,
+            "{}{}\nGoogle Test Viewer{}",
+            style::Bold,
+            color::Fg(color::Green),
+            style::Reset
+        )
+        .unwrap();
+        writeln!(
+            tty,
+            "Running {}{}{} from {}{}{} suites.",
+            style::Bold,
+            self.iteration.num_cases,
+            style::Reset,
+            style::Bold,
+            self.iteration.num_suites,
+            style::Reset,
+        )
+        .unwrap();
+        for suite in self.iteration.suites.iter() {
+            let to_render = suite
+                .cases
+                .iter()
+                .filter(|test_case| {
+                    if self.config.only_failed {
+                        matches!(test_case.state, TestState::Failed(_))
+                    } else {
+                        true
+                    }
+                })
+                .collect::<Vec<&TestCase>>();
 
-                if !to_render.is_empty() {
-                    writeln!(
-                        tty,
-                        "Running {}{}{}.",
-                        style::Bold,
-                        suite.name,
-                        style::Reset,
-                    )
-                    .unwrap();
+            if !to_render.is_empty() {
+                writeln!(
+                    tty,
+                    "Running {}{}{}.",
+                    style::Bold,
+                    suite.name,
+                    style::Reset,
+                )
+                .unwrap();
 
-                    for case in to_render.iter() {
-                        if matches!(case.state, TestState::Passed) {
-                            writeln!(
-                                tty,
-                                " {}{}    OK{} - {}{}.",
-                                style::Bold,
-                                color::Fg(color::Green),
-                                color::Fg(color::Reset),
-                                case.name,
-                                style::Reset,
-                            )
-                            .unwrap();
-                        } else {
-                            writeln!(
-                                tty,
-                                " {}{}FAILED{} - {}{}.",
-                                style::Bold,
-                                color::Fg(color::Red),
-                                color::Fg(color::Reset),
-                                case.name,
-                                style::Reset,
-                            )
-                            .unwrap();
-                        }
+                for case in to_render.iter() {
+                    if matches!(case.state, TestState::Passed) {
+                        writeln!(
+                            tty,
+                            " {}{}    OK{} - {}{}.",
+                            style::Bold,
+                            color::Fg(color::Green),
+                            color::Fg(color::Reset),
+                            case.name,
+                            style::Reset,
+                        )
+                        .unwrap();
+                    } else {
+                        writeln!(
+                            tty,
+                            " {}{}FAILED{} - {}{}.",
+                            style::Bold,
+                            color::Fg(color::Red),
+                            color::Fg(color::Reset),
+                            case.name,
+                            style::Reset,
+                        )
+                        .unwrap();
                     }
                 }
             }
-            tty.flush().unwrap();
         }
+        tty.flush().unwrap();
     }
 }
