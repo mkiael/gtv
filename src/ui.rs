@@ -1,5 +1,5 @@
 use std::io::Write;
-use termion::{clear, color, style};
+use termion::{color, style};
 
 #[derive(PartialEq)]
 pub enum TestState {
@@ -89,8 +89,7 @@ impl Ui {
             let mut tty = termion::get_tty().unwrap();
             writeln!(
                 tty,
-                "{}{}{}Google Test Viewer{}",
-                clear::All,
+                "{}{}\nGoogle Test Viewer{}",
                 style::Bold,
                 color::Fg(color::Green),
                 style::Reset
@@ -129,9 +128,32 @@ impl Ui {
                         style::Reset,
                     )
                     .unwrap();
-                }
-                for case in to_render.iter() {
-                    writeln!(tty, "\t{}{}{}.", style::Bold, case.name, style::Reset,).unwrap();
+
+                    for case in to_render.iter() {
+                        if matches!(case.state, TestState::Passed) {
+                            writeln!(
+                                tty,
+                                " {}{}    OK{} - {}{}.",
+                                style::Bold,
+                                color::Fg(color::Green),
+                                color::Fg(color::Reset),
+                                case.name,
+                                style::Reset,
+                            )
+                            .unwrap();
+                        } else {
+                            writeln!(
+                                tty,
+                                " {}{}FAILED{} - {}{}.",
+                                style::Bold,
+                                color::Fg(color::Red),
+                                color::Fg(color::Reset),
+                                case.name,
+                                style::Reset,
+                            )
+                            .unwrap();
+                        }
+                    }
                 }
             }
             tty.flush().unwrap();

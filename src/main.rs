@@ -13,7 +13,7 @@ fn main() {
     });
     let mut ui = Ui::new(Config {
         enable_ui: env::var("GTV_NO_UI").unwrap_or_default().is_empty(),
-        only_failed: false,
+        only_failed: true,
     });
 
     loop {
@@ -42,5 +42,4 @@ fn main() {
     ui.render();
 
     parser_thd.join().unwrap();
-    eprintln!("Program done");
 }
